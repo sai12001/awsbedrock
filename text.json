@@ -1,0 +1,26 @@
+{
+    "messages": [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "text": "I'm going to give you a document"
+                },
+                {
+                    "file": {
+                        "name": "Conditional Monitoring Meter Master.xlsx",
+                        "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "data": "BASE64_ENCODED_FILE_CONTENT"
+                    }
+                }
+            ]
+        }
+    ],
+    "inferenceConfig": {
+        "maxTokens": 2000,
+        "temperature": 0
+    },
+    "additionalModelRequestFields": {
+        "top_k": null
+    }
+}
