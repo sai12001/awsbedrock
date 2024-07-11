@@ -1,87 +1,79 @@
-import boto3
 import json
+import boto3
 import base64
 
 def lambda_handler(event, context):
-    # S3 and Bedrock clients
-    s3 = boto3.client('s3')
-    bedrock = boto3.client('bedrock-runtime', region_name="ap-south-1")
-
-    # S3 bucket and file details
-    bucket_name = "excel"  # Replace with your S3 bucket name
-    file_key = "Conditional Monitoring Meter Master.xlsx"  # Replace with your file name
-
-    try:
-        # Read the file from S3
-        s3_object = s3.get_object(Bucket=bucket_name, Key=file_key)
-        file_content = s3_object['Body'].read()
-
-        # Encode the file content in base64
-        encoded_file_content = base64.b64encode(file_content).decode('utf-8')
-
-        # Define the message content with the file
-        messages = [
+    # Extract request body from the event
+    request_body = event.get('body', {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 1000,
+        "messages": [
             {
                 "role": "user",
                 "content": [
                     {
-                        "text": "I'm going to give you a document"
-                    },
-                    {
-                        "file": {
-                            "name": file_key,
-                            "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            "data": encoded_file_content
-                        }
+                        "type": "text",
+                        "text": "What's aws for"
                     }
                 ]
             }
         ]
+    })
 
-        # Define inference configuration
-        inference_config = {
-            "maxTokens": 2000,
-            "temperature": 0
-        }
+    # Create an S3 client
+    s3_client = boto3.client('s3')
 
-        # Define additional model request fields
-        additional_model_request_fields = {
-            "top_k": None
-        }
+    # S3 bucket and image key details
+    bucket_name = 'bedrocktest02'
+    image_key = 'testimage.png'
 
-        # Construct the request payload
-        payload = {
-            "messages": messages,
-            "inferenceConfig": inference_config,
-            "additionalModelRequestFields": additional_model_request_fields
-        }
+    try:
+        # Retrieve the image from S3
+        s3_object = s3_client.get_object(Bucket=bucket_name, Key=image_key)
+        image_data = s3_object['Body'].read()
 
-        # Convert payload to JSON
-        body = json.dumps(payload)
+        # Encode the image data to base64
+        encoded_image_data = base64.b64encode(image_data).decode('utf-8')
 
-        # Specify model ID
+        # Add image data to the request body
+        request_body["messages"][0]["content"].append({
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": "image/png",
+                "data": encoded_image_data
+            }
+        })
+
+        # Create a Bedrock runtime client (replace with your region)
+        client = boto3.client('bedrock-runtime', region_name='us-east-1')
+
+        # Set the model ID for Claude 3 Sonnet
         model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
 
-        # Invoke the model
-        response = bedrock.invoke_model(
-            body=body,
+        # Send the request to Bedrock using the 'invoke' API method
+        response = client.invoke_model(
             modelId=model_id,
-            accept="application/json",
-            contentType="application/json",
+            body=json.dumps(request_body)
         )
 
-        # Parse and extract response
-        response_body = json.loads(response['body'].read())
-        response_text = response_body['completions'][0]['data']['text']
+        # Read the content from the StreamingBody
+        response_payload = response['body'].read().decode('utf-8')
+        print("Full Response Payload:", response_payload)
 
+        # Parse the payload
+        payload = json.loads(response_payload)
+        generated_text = payload.get('completions', [{}])[0].get('text', '')
+
+        # Return the generated text
         return {
             'statusCode': 200,
-            'body': json.dumps(response_text)
+            'body': json.dumps({'generated_text': generated_text, 'response': payload})
         }
 
     except Exception as e:
-        print(e)
+        # Handle any errors that occurred during the process
         return {
             'statusCode': 500,
-            'body': json.dumps('Error processing the file')
+            'body': json.dumps({'error': str(e)})
         }
