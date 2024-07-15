@@ -4,17 +4,20 @@ import openpyxl
 from io import BytesIO
 
 def lambda_handler(event, context):
+    print(event)
+    user_prompt=event['prompt']
+    
     # Extract request body from the event
     request_body = event.get('body', {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1000,
+        "max_tokens": 50,
         "messages": [
             {
                 "role": "user",
                 "content": [
                     {
                         "type": "text",
-                        "text": "Explain this"
+                        "text": user_prompt
                     }
                 ]
             }
@@ -25,7 +28,7 @@ def lambda_handler(event, context):
     s3_client = boto3.client('s3')
 
     # S3 bucket and file key details
-    bucket_name = 'bedrocktest02'
+    bucket_name = 'bedrocktest03'
     file_key = 'Employee_Details-2.xlsx'
 
     try:
